@@ -1,44 +1,49 @@
-import socket, threading
+import socket
+import sys
+import threading
+import pickle
 
 
+class Server():
+    def __init__(self, clients=[]):
+        self.sock = None
+        self.clients = clients
+        self.port = int(input("Port: "))
+        self.work_server()
 
-class ClientThread(threading.Thread):
-    def __init__(self, clientAddress, clientsocket):
-        threading.Thread.__init__(self)
-        self.csocket = clientsocket
-        print("Новое подключение: ", clientAddress)
-
-    def run(self):
-        print("Подключение с клиента : ", clientAddress)
-
-        msg = ''
+    def work_server(self):
+        self.sock = socket.socket()
         while True:
-            data = self.csocket.recv(4096)
-            msg = data.decode()
-            print(msg)
-
-            if msg == '':
-                print("Отключение")
+            try:
+                self.sock.bind(('', self.port))
                 break
+            except:
+                self.port += 1
+        print(f'Got port #{self.port}')
+        self.sock.listen(5)
+        HEADERSIZE = 10
+        while True:
+            conn, addr = self.sock.accept()
+            print(f"Connection from client with IP {addr[0]} has been established")
+            threading.Thread(target=self.connect_with_client, args=(conn, addr)).start()
+            msg = f"Welcome to the server, client with IP {addr[0]}!"
+            msg = f"{len(msg):<{HEADERSIZE}}" + msg
+            conn.send(bytes(msg, "utf-8"))
+            self.clients.append(conn)
+
+    def connect_with_client(self, conn, addr):
+        while True:
+            data = conn.recv(1024).decode()
+            if not data:
+                conn.close();
+                break
+            else:
+                print(f"Message:{data} is from {addr[0]}")
+                for sock in self.clients:
+                    if sock != conn:
+                        sock.send(data.encode())
+                        mess = f" is from {addr[0]}"
+                        sock.send(mess.encode())
 
 
-
-            print("Запрос " + str(msg) + " обработан")
-
-        print("Клиент ", clientAddress, " покинул нас...")
-
-
-LOCALHOST = "10.8.0.6"
-PORT = 1488
-
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-server.bind((LOCALHOST, PORT))
-print("Сервер запущен!")
-
-while True:
-    server.listen(1)
-    clientsock, clientAddress = server.accept()
-    newthread = ClientThread(clientAddress, clientsock)
-    newthread.start()
+SE = Server()

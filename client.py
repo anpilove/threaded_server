@@ -1,35 +1,39 @@
 import socket
-from threading import Thread
+import time
+import sys
 import threading
 
 
-SERVER = "10.8.0.6"
-PORT = 1488
+class Client:
+    def __init__(self, sock, port):
+        self.sock = sock
+        self.port = port
+        self.name = input("What is your name ?")
+        self.work_client()
+
+    def work_client(self):
+        threading.Thread(target=self.recv).start()
+        HEADERSIZE = 10
+        while True:
+            msg = input("Message: ")
+            msg = f"{len(msg):<{HEADERSIZE}}" + msg
+            if msg == "exit":
+                break
+            else:
+                self.sock.send(msg.encode())
+        self.sock.close()
+
+    def recv(self):
+        while True:
+            self.data = self.sock.recv(1024)  # got data from server
+            print(self.data.decode())
+            if not self.data:
+                sys.exit(0)
 
 
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client.connect((SERVER, PORT))
-client.sendall(bytes("979879789", "UTF-8"))
-
-def task():
-    while True:
-        in_data =  client.recv(4096)
-        print("От сервера :" ,in_data.decode())
-
-def task2():
-    while True:
-        out_data = input()
-        client.sendall(bytes(out_data,'UTF-8'))
-        print("Отпаравлено :" + str(out_data))
-
-t1 = Thread(target=task2)
-t2 = Thread(target=task)
-
-t1.start()
-t2.start()
-
-t1.join()
-t2.join()
-
-
-
+sock = socket.socket()
+port = int(input("Port: "))
+if not (port >= 0 and port <= 65535):
+    port = 9090
+sock.connect(('localhost', port))
+CL = Client(sock, port)
